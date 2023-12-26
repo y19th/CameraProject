@@ -13,39 +13,36 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.cameraproject.R
 import com.example.cameraproject.domain.events.MainEvents
 import com.example.cameraproject.domain.models.DoorModel
 import com.example.cameraproject.domain.viewmodel.MainViewModel
+import com.example.cameraproject.presentation.components.EditSheet
 import com.example.cameraproject.presentation.components.LazyRefresh
-import com.example.cameraproject.presentation.components.StandardText
 import com.example.cameraproject.ui.theme.StarYellow
 import de.charlex.compose.RevealDirection
 import de.charlex.compose.RevealSwipe
+import de.charlex.compose.rememberRevealState
+import de.charlex.compose.reset
+import kotlinx.coroutines.launch
 
 @Composable
 fun DoorScreen(
@@ -67,60 +64,15 @@ fun DoorScreen(
                     ))
                 },
                 onEdit = {
-
+                    viewModel.onEvent(MainEvents.OnDoorNameChange(
+                        newName = it,
+                        index = index
+                    ))
                 }
             )
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditSheet(
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState()
-    var itemName by remember {
-        mutableStateOf("")
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = itemName,
-                onValueChange = {
-                    itemName = it
-                }
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(color = MaterialTheme.colorScheme.primary),
-                onClick = { onConfirm.invoke(itemName) }
-            ) {
-                StandardText(
-                    text = stringResource(id = R.string.done),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-    }
-
-}
-
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -132,6 +84,8 @@ private fun DoorItem(
 
     var showBottomSheet by remember { mutableStateOf(false) }
 
+    val state = rememberRevealState()
+    val scope = rememberCoroutineScope()
 
     if(showBottomSheet) {
         EditSheet(
@@ -155,11 +109,11 @@ private fun DoorItem(
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
-
         RevealSwipe(
             modifier = Modifier,
             directions = setOf(RevealDirection.EndToStart),
             backgroundCardEndColor = MaterialTheme.colorScheme.background,
+            state = state,
             hiddenContentEnd = {
                 Row (
                     verticalAlignment = Alignment.CenterVertically
@@ -167,7 +121,10 @@ private fun DoorItem(
                     Image(
                         modifier = Modifier
                             .padding(start = 16.dp)
-                            .clickable { showBottomSheet = true },
+                            .clickable {
+                                showBottomSheet = true
+                                scope.launch {  state.reset() }
+                            },
                         painter = painterResource(id = R.drawable.ic_edit_door),
                         contentDescription = null
                     )
@@ -175,7 +132,10 @@ private fun DoorItem(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Image(
-                        modifier = Modifier.clickable { onFavourite.invoke() },
+                        modifier = Modifier.clickable {
+                            onFavourite.invoke()
+                            scope.launch {  state.reset() }
+                        },
                         painter = painterResource(id = R.drawable.ic_rounded_star),
                         contentDescription = null
                     )

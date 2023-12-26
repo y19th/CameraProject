@@ -58,6 +58,13 @@ class DatabaseEntity : KoinComponent {
         }
     }
 
+    fun updateNameDoor(itemId: Int,newName: String) {
+        realm.writeBlocking {
+            val door = query<DoorObject>("id == $0",itemId).find().first()
+            door.name = newName
+        }
+    }
+
     fun deleteDoors() {
         realm.writeBlocking {
             this.query<DoorObject>().find().forEach { delete(it) }

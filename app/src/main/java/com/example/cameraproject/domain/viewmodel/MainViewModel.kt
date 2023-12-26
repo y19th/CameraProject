@@ -1,5 +1,6 @@
 package com.example.cameraproject.domain.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.cameraproject.data.models.ResponseCameraModel
@@ -15,6 +16,7 @@ import com.example.cameraproject.domain.models.DoorModel
 import com.example.cameraproject.domain.repository.MainRepository
 import com.example.cameraproject.domain.state.MainState
 import io.ktor.client.call.body
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +26,10 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 
 class MainViewModel : ViewModel(),KoinComponent {
+
+    companion object {
+        const val TAG = "MainViewModel"
+    }
 
     private val repository: MainRepository = get()
     private val database: DatabaseEntity = get()
@@ -35,6 +41,10 @@ class MainViewModel : ViewModel(),KoinComponent {
     private val _state = MutableStateFlow(MainState())
     val state = _state.asStateFlow()
 
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.i(TAG,"throwed ${throwable.message}")
+        _state.update { it.copy(isRefreshing = false) }
+    }
 
     init {
         viewModelScope.launch {
@@ -74,7 +84,17 @@ class MainViewModel : ViewModel(),KoinComponent {
                 )
             }
             is MainEvents.OnDoorNameChange -> {
-
+                _state.update {
+                    it.copy(
+                        doorsList = state.value.doorsList.toMutableList().also { list ->
+                            list[event.index] = list[event.index].copy(name = event.newName)
+                        }
+                    )
+                }
+                database.updateNameDoor(
+                    itemId = state.value.doorsList[event.index].id,
+                    newName = event.newName
+                )
             }
         }
     }
@@ -121,7 +141,7 @@ class MainViewModel : ViewModel(),KoinComponent {
 
 
     private fun fetchCameras() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
             val response = repository.getCameras()
             val body = response.body() as ResponseCameraModel
             val cameras = body.data.cameras.toListCameraModel()
@@ -138,7 +158,7 @@ class MainViewModel : ViewModel(),KoinComponent {
     }
 
     private fun fetchDoors() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO + coroutineExceptionHandler) {
             val response = repository.getDoors()
             val body = response.body() as ResponseDoorModel
             val doors = body.data.toListDoorModel()
